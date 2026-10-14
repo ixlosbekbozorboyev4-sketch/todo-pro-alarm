@@ -26,7 +26,19 @@ Ushbu loyiha sof **HTML5**, **Vanilla CSS3** va **Modern JavaScript (ES6+)** yor
 
 ---
 
-### 📋 2. Vazifalar Boshqaruvi
+### 🪄 2. Katta Vazifalarni Avtomatik Kichik Qadamlarga Bo'lish (Subtasks Checklist)
+- **Aqlli Bo'lish Dvigateli (Smart NLP Heuristics)**: Katta, keng qamrovli vazifalar (masalan: *"Sayt yaratish"*, *"Imtihonga tayyorlanish"*, *"Ingliz tili o'rganish"*, *"Kitob o'qish"*, *"Diplom ishi yozish"*, *"Uy tozalash"* va h.k.) kiritilganda, dastur ularni avtomatik ravishda 4-5 ta ketma-ket, mantiqiy kichik qadamlarga ajratadi.
+- **Tezkor Boshqaruv Tugmasi (Toggle Switch)**: Yangi vazifa kiritish panelida avtomatik bo'lish funksiyasini yoqish/o'chirish imkoniyati.
+- **Har Bir Vazifada "🪄 Qadamlarga bo'lish" Tugmasi**: Avval qo'shilgan yoki oddiy vazifalarni ham istalgan paytda bir bosishda qadamlarga ajratish.
+- **Interaktiv Checklist va Mini Progress Bar**:
+  - Har bir kichik qadam uchun alohida checkbox (`2/4 qadam bajarildi`, `50%`).
+  - Qadamlar yakunlangani sari mini progress bar to'lib boradi.
+  - Barcha qadamlar bajarilganda asosiy vazifa avtomatik ravishda yakunlanadi va konfetti otiladi!
+- **Yangi Qadam Qo'shish va O'chirish**: Foydalanuvchi o'ziga mos ravishda qo'shimcha kichik qadamlar kiritishi yoki o'chirishi mumkin.
+
+---
+
+### 📋 3. Vazifalar Boshqaruvi
 - Vazifalarni qo'shish, tahrirlash (inline edit), o'chirish va bajarilgan deb belgilash.
 - **Kategoriyalar**: O'qish 📚, Ish 💼, Shaxsiy 👤, Sport 🏃‍♂️, Moliya 💰.
 - **Muhimlik Darajasi (Priority)**: Past 🟢, O'rta 🟡, Yuqori 🔴.

@@ -280,6 +280,7 @@ class TodoApp {
     this.elements = {
       taskForm: document.getElementById('task-form'),
       taskInput: document.getElementById('task-input'),
+      autoBreakdownCheckbox: document.getElementById('auto-breakdown-checkbox'),
       taskCategory: document.getElementById('task-category'),
       taskPriority: document.getElementById('task-priority'),
       taskDueDate: document.getElementById('task-due-date'),
@@ -571,6 +572,45 @@ class TodoApp {
         return;
       }
 
+      // Toggle Subtask
+      const subtaskCheckBtn = e.target.closest('[data-action="toggle-subtask"]');
+      if (subtaskCheckBtn) {
+        const subtaskId = subtaskCheckBtn.dataset.subtaskId;
+        this.toggleSubtask(taskId, subtaskId);
+        return;
+      }
+
+      // Delete Subtask
+      const subtaskDelBtn = e.target.closest('[data-action="delete-subtask"]');
+      if (subtaskDelBtn) {
+        const subtaskId = subtaskDelBtn.dataset.subtaskId;
+        this.deleteSubtask(taskId, subtaskId);
+        return;
+      }
+
+      // Add Subtask button
+      const subtaskAddBtn = e.target.closest('[data-action="add-subtask"]');
+      if (subtaskAddBtn) {
+        const container = taskItem.querySelector('.subtasks-container');
+        const input = container ? container.querySelector('.subtask-add-input') : null;
+        if (input && input.value.trim()) {
+          this.addSubtask(taskId, input.value.trim());
+        }
+        return;
+      }
+
+      // Decompose button (break down task into steps)
+      if (e.target.closest('[data-action="decompose"]')) {
+        this.decomposeTask(taskId);
+        return;
+      }
+
+      // Toggle Subtasks collapse / expand
+      if (e.target.closest('[data-toggle-subtasks]')) {
+        this.toggleSubtasksCollapse(taskId);
+        return;
+      }
+
       // Delete button
       if (e.target.closest('.delete-btn')) {
         this.deleteTask(taskId);
@@ -596,16 +636,24 @@ class TodoApp {
       }
     });
 
-    // Keydown handling for inline edit inputs
+    // Keydown handling for inline edit inputs and subtask input
     this.elements.tasksList.addEventListener('keydown', (e) => {
+      const taskItem = e.target.closest('.task-item');
+      if (!taskItem) return;
+      const taskId = taskItem.dataset.id;
+
       if (e.target.classList.contains('task-edit-input')) {
-        const taskId = e.target.closest('.task-item').dataset.id;
         if (e.key === 'Enter') {
           e.preventDefault();
           this.saveEditTask(taskId);
         } else if (e.key === 'Escape') {
           e.preventDefault();
           this.cancelEditTask();
+        }
+      } else if (e.target.classList.contains('subtask-add-input')) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.addSubtask(taskId, e.target.value.trim());
         }
       }
     });
@@ -641,6 +689,13 @@ class TodoApp {
       this.elements.taskDueDate.value = dueDate;
     }
 
+    // Smart Auto-Breakdown into subtasks if enabled
+    let subtasks = [];
+    const shouldAutoDecompose = this.elements.autoBreakdownCheckbox ? this.elements.autoBreakdownCheckbox.checked : true;
+    if (shouldAutoDecompose && this.shouldDecompose(text)) {
+      subtasks = this.decomposeTaskIntoSteps(text, this.elements.taskCategory.value);
+    }
+
     const newTask = {
       id: 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
       text: text,
@@ -650,6 +705,8 @@ class TodoApp {
       dueTime: dueTime,
       alarmTriggered: false,
       completed: false,
+      subtasks: subtasks,
+      subtasksCollapsed: false,
       createdAt: Date.now()
     };
 
@@ -664,9 +721,10 @@ class TodoApp {
 
     this.sound.playPop();
 
-    if (dueTime) {
+    if (subtasks.length > 0) {
+      this.showToast(`Vazifa ${subtasks.length} ta ketma-ket kichik qadamlarga bo'lindi! 🪄`, 'success');
+    } else if (dueTime) {
       this.showToast(`Vazifa va budilnik (${dueTime}) o'rnatildi! ⏰`, 'success');
-      // Proactively ask for notification permission on first alarm setting if default
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().then(() => this.initNotificationButton());
       }
@@ -682,6 +740,12 @@ class TodoApp {
     if (!task) return;
 
     task.completed = !task.completed;
+
+    // Synchronize all subtasks with parent status
+    if (task.subtasks && task.subtasks.length > 0) {
+      task.subtasks.forEach(s => s.completed = task.completed);
+    }
+
     this.saveTasks();
 
     if (task.completed) {
@@ -696,6 +760,284 @@ class TodoApp {
       this.sound.playPop();
     }
 
+    this.render();
+  }
+
+  // --- Smart Task Decomposition (Kichik Qadamlarga Bo'lish) ---
+
+  shouldDecompose(text) {
+    if (!text) return false;
+    const clean = text.trim();
+    // Multi-line, delimiter or phrases
+    if (clean.includes('\n') || clean.includes(';') || clean.toLowerCase().includes(' keyin ') || clean.toLowerCase().includes(" so'ng ")) {
+      return true;
+    }
+    // Any task with 2+ words or 10+ characters
+    const words = clean.split(/\s+/).filter(Boolean);
+    return words.length >= 2 || clean.length >= 10;
+  }
+
+  decomposeTaskIntoSteps(text, category = '') {
+    const raw = text.trim();
+    const lower = raw.toLowerCase();
+
+    // 1. Check if user typed explicit multi-line steps
+    if (raw.includes('\n')) {
+      const lines = raw.split('\n').map(s => s.replace(/^[-*•\d.)\s]+/, '').trim()).filter(Boolean);
+      if (lines.length >= 2) {
+        return lines.map((step, i) => ({
+          id: 'step-' + Date.now() + '-' + i,
+          text: `${i + 1}-qadam: ${step}`,
+          completed: false
+        }));
+      }
+    }
+
+    // 2. Check if user separated tasks with delimiters
+    if (raw.includes(';') || lower.includes(' keyin ') || lower.includes(" so'ng ") || lower.includes(' va keyin ')) {
+      const delimiterRegex = /;| keyin | so'ng | va keyin /i;
+      const parts = raw.split(delimiterRegex).map(s => s.replace(/^[-*•\d.)\s]+/, '').trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.map((part, i) => ({
+          id: 'step-' + Date.now() + '-' + i,
+          text: `${i + 1}-qadam: ${part.charAt(0).toUpperCase() + part.slice(1)}`,
+          completed: false
+        }));
+      }
+    }
+
+    // 3. Knowledge-based Uzbek semantic rules
+    const rules = [
+      {
+        keywords: ['sayt', 'veb', 'web', 'frontend', 'backend', 'dasturlash', 'kod', 'dastur', 'app', 'loyiha', 'react', 'javascript', 'html', 'css'],
+        steps: [
+          "Loyiha g'oyasi, talablari va dizaynini rejalashtirish (Figma)",
+          "HTML strukturasini va zamonaviy CSS stillarini tuzish",
+          "JavaScript orqali asosiy mantiq va hodisalarni ulash",
+          "Barcha tugma va funksiyalarni test qilib, xatolarni to'g'rilash",
+          "Loyihani GitHub yoki jonli serverga yuklash (Deploy)"
+        ]
+      },
+      {
+        keywords: ['imtihon', 'sessiya', 'test', 'nazorat', 'oraliq', 'yakuniy', 'baho'],
+        steps: [
+          "Barcha savollar va imtihon mavzulari ro'yxatini shakllantirish",
+          "Darsliklar va ma'ruza konspektlarini sinchiklab takrorlash",
+          "Namunaviy testlar va amaliy topshiriqlarni mustaqil yechish",
+          "Tushunarsiz qolgan qiyin mavzularni o'rganib chiqish",
+          "Yakuniy umumlashtirish va imtihonga to'liq tayyor bo'lish"
+        ]
+      },
+      {
+        keywords: ['kitob', 'mutolaa', 'o\'qish', 'oqish', 'roman', 'asar'],
+        steps: [
+          "Kitob mundarijasi va kirish qismi bilan tanishish",
+          "Kunlik sahifalar me'yorini belgilash va mutolaani boshlash",
+          "Asosiy boblarni diqqat bilan o'qib, muhim fikrlarni belgilash",
+          "Muhim iqtibos va tushunchalarni qayd qilish (konspekt)",
+          "Kitob bo'yicha o'z xulosasi va fikrlarini umumlashtirish"
+        ]
+      },
+      {
+        keywords: ['tozalash', 'tozalik', 'yig\'ishtirish', 'yigishtirish', 'uborka', 'tartib'],
+        steps: [
+          "Keraksiz buyumlarni ajratish va xonani tartibga keltirish",
+          "Mebel, tokcha va yuzalardagi changlarni nam mato bilan artish",
+          "Polni supurish yoki changyutkich bilan tozalash",
+          "Polni yuvish, oynalarni tozalash va xonani shamollatish"
+        ]
+      },
+      {
+        keywords: ['ingliz', 'english', 'til', 'nemis', 'rus', 'koreys', 'ielts', 'til o\'rganish'],
+        steps: [
+          "20 ta yangi lug'at so'zlarini yodlash va talaffuzini mashq qilish",
+          "Grammatik qoidani tushunib, mashqlar bajarish",
+          "15 daqiqa inglizcha audio eshitish (Listening)",
+          "Matn o'qib, yangi birikmalarni tahlil qilish (Reading)",
+          "10 daqiqa mavzu bo'yicha mustaqil gapirish (Speaking)"
+        ]
+      },
+      {
+        keywords: ['kurs ishi', 'diplom', 'referat', 'maqola', 'esse', 'prezentatsiya', 'taqdimot'],
+        steps: [
+          "Mavzuni tasdiqlash va reja tuzish",
+          "Kerakli adabiyotlar, maqolalar va ma'lumotlarni to'plash",
+          "Kirish va asosiy amaliy qismlarni bosqichma-bosqich yozish",
+          "Xulosalar chiqarish va foydalanilgan adabiyotlar ro'yxatini kiritish",
+          "Imlo va formatlashni tekshirib, yakuniy taqdimotga tayyorlash"
+        ]
+      },
+      {
+        keywords: ['sayohat', 'dam olish', 'sayr', 'ta\'til', 'tatil', 'bilet', 'safar'],
+        steps: [
+          "Sayohat yo'nalishi va boriladigan qiziqarli joylarni tanlash",
+          "Yo'l chiptalari va mehmonxona/turar joyni band qilish",
+          "Kerakli hujjatlar, xarajatlar smetasi va yo'l budjetini tayyorlash",
+          "Chamadon va barcha zarur shaxsiy buyumlarni yig'ish",
+          "Reja asosida vaqtida yo'lga chiqish"
+        ]
+      },
+      {
+        keywords: ['mashina', 'telefon', 'noutbuk', 'xarid', 'sotib olish', 'kompyuter olish'],
+        steps: [
+          "Mavjud byudjet va talab qilinadigan parametrlarni belgilash",
+          "Bozordagi modellar va xaridorlar sharhlarini (reviews) taqqoslash",
+          "Tanlangan 2-3 ta variantni jonli ko'rish va texnik tekshiruvdan o'tkazish",
+          "Kafolat va narx bo'yicha kelishib, xaridni rasmiylashtirish"
+        ]
+      },
+      {
+        keywords: ['ovqat', 'taom', 'kechki ovqat', 'tushlik', 'pishirish', 'osh', 'somsa', 'tort'],
+        steps: [
+          "Retseptni aniqlash va kerakli masalliqlarni tekshirish",
+          "Yetishmayotgan mahsulotlarni do'kondan xarid qilish",
+          "Masalliqlarni yuvish, tozalash va to'g'rab tayyorlash",
+          "Pishirish bosqichlarini ketma-ketlikda bajarish",
+          "Dasturxonga chiroyli qilib tortish va bezatish"
+        ]
+      },
+      {
+        keywords: ['sport', 'mashq', 'trenirovka', 'zal', 'yugurish', 'fitnes'],
+        steps: [
+          "5-10 daqiqalik qizdiruvchi mashqlar (Razminka)",
+          "Asosiy guruh mashqlari (kuch va kardio)",
+          "Qorin mushaklari (press) va mashqlar yakuni",
+          "Mushaklarni cho'zish (Stretching) va suv balansini tiklash"
+        ]
+      },
+      {
+        keywords: ['rezyume', 'cv', 'ishga kirish', 'suhbat', 'portfolio', 'vakansiya'],
+        steps: [
+          "Rezyumeni yangi ko'nikmalar va tajribalar bilan yangilash",
+          "Eng kuchli 2-3 ta loyihani portfolio sahifasiga joylash",
+          "Mos keluvchi vakansiyalarni qidirish va saralash",
+          "Kompaniyalarga rezyume va qisqa xat (Cover Letter) yuborish",
+          "Suhbatga (Interview) tayyorgarlik ko'rish va savollarni mashq qilish"
+        ]
+      },
+      {
+        keywords: ['kompyuter', 'windows', 'format', 'drayver', 'fayllar'],
+        steps: [
+          "Muhim shaxsiy ma'lumotlarni tashqi xotiraga (Flashka) zaxiralash",
+          "O'rnatuvchi yuklash fayli (Bootable USB) tayyorlash",
+          "Tizimni toza o'rnatishni amalga oshirish",
+          "Kerakli barcha drayverlar va asosiy dasturlarni o'rnatish"
+        ]
+      }
+    ];
+
+    for (const rule of rules) {
+      if (rule.keywords.some(k => lower.includes(k))) {
+        return rule.steps.map((step, i) => ({
+          id: 'step-' + Date.now() + '-' + i,
+          text: `${i + 1}-qadam: ${step}`,
+          completed: false
+        }));
+      }
+    }
+
+    // 4. Universal smart progressive fallback
+    const cleanTitle = raw.charAt(0).toUpperCase() + raw.slice(1);
+    return [
+      {
+        id: 'step-' + Date.now() + '-0',
+        text: `1-qadam: "${cleanTitle}" bo'yicha aniq reja va materiallarni tayyorlash`,
+        completed: false
+      },
+      {
+        id: 'step-' + Date.now() + '-1',
+        text: `2-qadam: Asosiy vazifani bajarishga kirishish va dastlabki natijaga erishish`,
+        completed: false
+      },
+      {
+        id: 'step-' + Date.now() + '-2',
+        text: `3-qadam: Bajarilgan ishlarni tekshirish va kamchiliklarni to'g'rilash`,
+        completed: false
+      },
+      {
+        id: 'step-' + Date.now() + '-3',
+        text: `4-qadam: Yakuniy natijani tasdiqlash va ishni to'liq yakunlash`,
+        completed: false
+      }
+    ];
+  }
+
+  decomposeTask(taskId) {
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    task.subtasks = this.decomposeTaskIntoSteps(task.text, task.category);
+    task.subtasksCollapsed = false;
+    this.saveTasks();
+    this.sound.playPop();
+    this.showToast(`Vazifa ${task.subtasks.length} ta kichik qadamlarga bo'lindi! 🪄`, 'success');
+    this.render();
+  }
+
+  toggleSubtask(taskId, subtaskId) {
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task || !task.subtasks) return;
+
+    const sub = task.subtasks.find(s => s.id === subtaskId);
+    if (!sub) return;
+
+    sub.completed = !sub.completed;
+
+    // Check if all subtasks are completed
+    const allDone = task.subtasks.every(s => s.completed);
+    if (allDone && !task.completed) {
+      task.completed = true;
+      this.sound.playSuccess();
+      this.confetti.fire();
+      this.showToast("Barcha qadamlar bajarildi! Vazifa yakunlandi! 🎉", 'success');
+    } else if (!allDone && task.completed) {
+      task.completed = false;
+      this.sound.playPop();
+    } else {
+      this.sound.playPop();
+    }
+
+    this.saveTasks();
+    this.render();
+  }
+
+  deleteSubtask(taskId, subtaskId) {
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task || !task.subtasks) return;
+
+    task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+    this.saveTasks();
+    this.showToast("Qadam o'chirildi", 'info');
+    this.render();
+  }
+
+  addSubtask(taskId, text) {
+    const clean = (text || '').trim();
+    if (!clean) return;
+
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (!task.subtasks) task.subtasks = [];
+    const stepNum = task.subtasks.length + 1;
+    task.subtasks.push({
+      id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      text: `${stepNum}-qadam: ${clean}`,
+      completed: false
+    });
+
+    if (task.completed) task.completed = false;
+    this.saveTasks();
+    this.sound.playPop();
+    this.showToast("Yangi qadam qo'shildi! ➕", 'success');
+    this.render();
+  }
+
+  toggleSubtasksCollapse(taskId) {
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    task.subtasksCollapsed = !task.subtasksCollapsed;
+    this.saveTasks();
     this.render();
   }
 
@@ -1160,6 +1502,72 @@ class TodoApp {
         alarmBadgeHtml = `<span class="badge ${alarmClass}" title="Budilnik o'rnatilgan vaqt">${alarmText}</span>`;
       }
 
+      // Subtasks Checklist HTML
+      let subtasksHtml = '';
+      const hasSubtasks = Array.isArray(task.subtasks) && task.subtasks.length > 0;
+
+      if (hasSubtasks) {
+        const totalSub = task.subtasks.length;
+        const completedSub = task.subtasks.filter(s => s.completed).length;
+        const percent = Math.round((completedSub / totalSub) * 100);
+        const isCollapsed = Boolean(task.subtasksCollapsed);
+
+        subtasksHtml = `
+          <div class="subtasks-container">
+            <div class="subtasks-header" data-toggle-subtasks="${task.id}" title="Qadamlarni ochish yoki yopish">
+              <div class="subtasks-header-left">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <span class="subtasks-title">Kichik qadamlar (${completedSub}/${totalSub})</span>
+                <div class="subtask-mini-progress">
+                  <div class="subtask-mini-fill" style="width: ${percent}%;"></div>
+                </div>
+                <span class="subtask-mini-percent">${percent}%</span>
+              </div>
+              <button type="button" class="subtask-toggle-btn" aria-label="Ochish yoki yopish">
+                <svg class="chevron-icon ${isCollapsed ? 'collapsed' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            </div>
+
+            <div class="subtasks-body ${isCollapsed ? 'collapsed' : ''}">
+              <ul class="subtasks-list">
+                ${task.subtasks.map(sub => `
+                  <li class="subtask-item ${sub.completed ? 'completed' : ''}" data-subtask-id="${sub.id}">
+                    <button type="button" class="subtask-check-btn" data-action="toggle-subtask" data-subtask-id="${sub.id}" aria-label="Qadamni belgilash">
+                      <svg class="subtask-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </button>
+                    <span class="subtask-text">${this.escapeHtml(sub.text)}</span>
+                    <button type="button" class="subtask-delete-btn" data-action="delete-subtask" data-subtask-id="${sub.id}" title="Qadamni o'chirish">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </li>
+                `).join('')}
+              </ul>
+
+              <div class="subtask-add-row">
+                <input type="text" class="subtask-add-input" placeholder="+ Yangi qadam qo'shish..." maxlength="100">
+                <button type="button" class="subtask-add-btn" data-action="add-subtask">Qo'shish</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Inline decompose button if task does not have subtasks and is not completed
+      let decomposeBtnHtml = '';
+      if (!hasSubtasks && !task.completed) {
+        decomposeBtnHtml = `<button type="button" class="decompose-inline-btn" data-action="decompose" title="Vazifani kichik qadamlarga bo'lish"><span>🪄 Qadamlarga bo'lish</span></button>`;
+      }
+
       // Check if this task is being edited
       if (this.editingTaskId === task.id) {
         li.innerHTML = `
@@ -1186,7 +1594,9 @@ class TodoApp {
               ${priorityBadgeHtml}
               ${dateBadgeHtml}
               ${alarmBadgeHtml}
+              ${decomposeBtnHtml}
             </div>
+            ${subtasksHtml}
           </div>
 
           <div class="task-actions">
