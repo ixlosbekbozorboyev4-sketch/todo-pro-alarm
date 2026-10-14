@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="uz" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Professional va zamonaviy vazifalar boshqaruv tizimi - Todo Pro">
+  <title>Todo Pro - Professional Vazifalar Boshqaruvi</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Canvas for celebration confetti -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="app-container">
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Todo Pro</h1>
+          <p class="brand-subtitle" id="current-date-text">Bugun rejalashtirish kuni</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Notification Permission Button -->
+        <button id="notif-toggle-btn" class="icon-btn" title="Budilnik xabarlariga ruxsat berish (Bildirishnoma)" aria-label="Bildirishnomalar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </button>
+
+        <!-- Test Alarm Button -->
+        <button id="test-alarm-btn" class="icon-btn" title="Budilnik ovozini sinash" aria-label="Budilnikni sinash">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="8"></circle>
+            <path d="M12 9v4l2 2"></path>
+            <path d="M5 3L2 6"></path>
+            <path d="M22 6l-3-3"></path>
+          </svg>
+        </button>
+
+        <!-- Sound Toggle Button -->
+        <button id="sound-toggle-btn" class="icon-btn active" title="Ovozni yoqish / o'chirish" aria-label="Ovoz effektlari">
+          <svg id="sound-icon-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <svg id="sound-icon-off" style="display:none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button id="theme-toggle-btn" class="icon-btn" title="Mavzuni almashtirish (Tun / Kun)" aria-label="Tun yoki kun rejimi">
+          <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="theme-icon-moon" style="display:none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats & Progress Dashboard -->
+    <section class="stats-card" aria-label="Vazifalar statistikasi">
+      <div class="stats-info">
+        <h2 class="stats-title" id="stats-status-text">Kunlik Rejalar</h2>
+        <p class="stats-description" id="stats-summary-text">Yuklanmoqda...</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-container">
+          <div class="progress-fill" id="progress-bar"></div>
+        </div>
+      </div>
+      <div class="stats-counter-badge">
+        <span class="stats-percent" id="stats-percent">0%</span>
+        <span class="stats-label">Bajarildi</span>
+      </div>
+    </section>
+
+    <!-- Add Task Card -->
+    <section class="add-task-card" aria-label="Yangi vazifa qo'shish">
+      <form id="task-form" class="task-form" autocomplete="off">
+        <div class="input-primary-wrapper">
+          <div class="input-icon-leading" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+          </div>
+          <input 
+            type="text" 
+            id="task-input" 
+            class="task-input" 
+            placeholder="Yangi vazifa kiriting (masalan: 11-dars topshirig'ini yakunlash)..." 
+            required
+            maxlength="140"
+          >
+        </div>
+
+        <div class="form-meta-row">
+          <!-- Category Selector -->
+          <div class="select-wrapper">
+            <select id="task-category" class="custom-select" aria-label="Kategoriya tanlang">
+              <option value="O'qish">📚 O'qish</option>
+              <option value="Ish">💼 Ish</option>
+              <option value="Shaxsiy" selected>👤 Shaxsiy</option>
+              <option value="Sport">🏃‍♂️ Sport</option>
+              <option value="Moliya">💰 Moliya</option>
+            </select>
+          </div>
+
+          <!-- Priority Selector -->
+          <div class="select-wrapper">
+            <select id="task-priority" class="custom-select" aria-label="Muhimlik darajasi">
+              <option value="low">🟢 Past muhimlik</option>
+              <option value="medium" selected>🟡 O'rta muhimlik</option>
+              <option value="high">🔴 Yuqori muhimlik</option>
+            </select>
+          </div>
+
+          <!-- Due Date -->
+          <div class="date-wrapper" title="Bajarish sanasi">
+            <input type="date" id="task-due-date" class="custom-date-input" aria-label="Bajarish sanasi">
+          </div>
+
+          <!-- Due Time / Alarm Time -->
+          <div class="time-wrapper" title="Budilnik vaqti (soat:daqiqa)">
+            <input type="time" id="task-due-time" class="custom-time-input" aria-label="Budilnik vaqti">
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="add-task-btn" class="submit-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Qo'shish</span>
+          </button>
+        </div>
+
+        <!-- Quick Alarm Presets -->
+        <div class="alarm-presets-row">
+          <span class="alarm-presets-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="13" r="8"></circle>
+              <path d="M12 9v4l2 2"></path>
+              <path d="M5 3L2 6"></path>
+              <path d="M22 6l-3-3"></path>
+            </svg>
+            Tezkor budilnik:
+          </span>
+          <div class="alarm-presets-buttons">
+            <button type="button" class="preset-time-btn" data-add-minutes="1">+1 daqiqa</button>
+            <button type="button" class="preset-time-btn" data-add-minutes="5">+5 daqiqa</button>
+            <button type="button" class="preset-time-btn" data-add-minutes="15">+15 daqiqa</button>
+            <button type="button" class="preset-time-btn" data-add-minutes="30">+30 daqiqa</button>
+            <button type="button" class="preset-time-btn" data-add-minutes="60">+1 soat</button>
+            <button type="button" class="preset-time-btn preset-reset" id="reset-time-btn" title="Vaqtni tozalash">✕ Tozalash</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Controls & Filters Toolbar -->
+    <section class="controls-toolbar" aria-label="Filtrlash va qidiruv">
+      <div class="search-and-status-row">
+        <!-- Search Box -->
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="text" 
+            id="search-input" 
+            class="search-input" 
+            placeholder="Vazifalarni qidirish..." 
+            aria-label="Vazifalarni qidirish"
+          >
+          <button type="button" id="clear-search-btn" class="clear-search-btn" title="Qidiruvni tozalash" aria-label="Qidiruvni tozalash">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filter Status Tabs -->
+        <nav class="filter-tabs" aria-label="Holat bo'yicha filter">
+          <button type="button" class="tab-btn active" data-filter="all" id="tab-all">
+            <span>Barchasi</span>
+            <span class="tab-count" id="count-all">0</span>
+          </button>
+          <button type="button" class="tab-btn" data-filter="active" id="tab-active">
+            <span>Faol</span>
+            <span class="tab-count" id="count-active">0</span>
+          </button>
+          <button type="button" class="tab-btn" data-filter="completed" id="tab-completed">
+            <span>Bajarilgan</span>
+            <span class="tab-count" id="count-completed">0</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="category-chips-row" id="category-chips" role="group" aria-label="Kategoriya bo'yicha saralash">
+        <button type="button" class="chip-btn active" data-category="all">Hammasi</button>
+        <button type="button" class="chip-btn" data-category="O'qish">📚 O'qish</button>
+        <button type="button" class="chip-btn" data-category="Ish">💼 Ish</button>
+        <button type="button" class="chip-btn" data-category="Shaxsiy">👤 Shaxsiy</button>
+        <button type="button" class="chip-btn" data-category="Sport">🏃‍♂️ Sport</button>
+        <button type="button" class="chip-btn" data-category="Moliya">💰 Moliya</button>
+      </div>
+    </section>
+
+    <!-- Task List Container -->
+    <main>
+      <ul class="tasks-container" id="tasks-list" role="list" aria-label="Vazifalar ro'yxati">
+        <!-- Dynamic Task Items will be injected here by script.js -->
+      </ul>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="empty-state" style="display: none;">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="9" y1="15" x2="15" y2="15"></line>
+        </svg>
+        <h3 class="empty-title" id="empty-title">Hozircha vazifalar mavjud emas</h3>
+        <p class="empty-subtitle" id="empty-subtitle">Yuqoridagi maydon orqali yangi vazifa qo'shishingiz yoki filtrlarni o'zgartirishingiz mumkin.</p>
+      </div>
+
+      <!-- Bottom Bulk Actions Toolbar -->
+      <div class="bottom-toolbar" id="bottom-toolbar">
+        <div class="pending-info">
+          <span id="pending-tasks-text">0 ta vazifa qoldi</span>
+        </div>
+        <div class="toolbar-btn-group">
+          <button type="button" id="toggle-all-btn" class="secondary-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            <span>Barchasini belgilash</span>
+          </button>
+          <button type="button" id="clear-completed-btn" class="secondary-btn danger-action">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Bajarilganlarni tozalash</span>
+          </button>
+        </div>
+      </div>
+    </main>
+  <!-- Alarm Ringing Modal Dialog -->
+  <div class="alarm-modal-backdrop" id="alarm-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="alarm-task-title">
+    <div class="alarm-modal-dialog">
+      <div class="alarm-header-visual">
+        <div class="alarm-pulse-ring ring-1"></div>
+        <div class="alarm-pulse-ring ring-2"></div>
+        <div class="alarm-bell-icon-wrapper">
+          <svg class="alarm-ringing-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="8"></circle>
+            <path d="M12 9v4l2 2"></path>
+            <path d="M5 3L2 6"></path>
+            <path d="M22 6l-3-3"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="alarm-status-pill">⏰ BUDILNIK VAQTI KELDI!</div>
+
+      <h2 class="alarm-modal-title" id="alarm-task-title">Vazifa nomi</h2>
+
+      <div class="alarm-meta-tags">
+        <span class="alarm-tag" id="alarm-task-category">📁 Kategoriya</span>
+        <span class="alarm-tag priority" id="alarm-task-priority">🔴 Yuqori</span>
+        <span class="alarm-tag time" id="alarm-task-time">⏰ 16:30</span>
+      </div>
+
+      <p class="alarm-modal-desc">Diqqat! Ushbu vazifangiz uchun belgilangan vaqt yetib keldi.</p>
+
+      <div class="alarm-modal-actions">
+        <button type="button" class="alarm-action-btn complete-btn" id="alarm-complete-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Bajarildi</span>
+        </button>
+        <button type="button" class="alarm-action-btn snooze-btn" id="alarm-snooze-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>+5 daqiqa (Kechiktirish)</span>
+        </button>
+        <button type="button" class="alarm-action-btn stop-btn" id="alarm-stop-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+          <span>To'xtatish</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- JavaScript -->
+  <script src="script.js" defer></script>
+</body>
+</html>
